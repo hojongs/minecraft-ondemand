@@ -17,6 +17,8 @@ import { constants } from './constants';
 import { SSMParameterReader } from './ssm-parameter-reader';
 import { StackConfig } from './types';
 import { getMinecraftServerConfig, isDockerInstalled } from './util';
+import { Port } from 'aws-cdk-lib/lib/aws-ec2';
+import { Protocol } from 'aws-cdk-lib/lib/aws-ecs';
 
 interface MinecraftStackProps extends StackProps {
   config: Readonly<StackConfig>;
@@ -127,9 +129,14 @@ export class MinecraftStack extends Stack {
             hostPort: minecraftServerConfig.port,
             protocol: minecraftServerConfig.protocol,
           },
+          {
+            containerPort: 9225,
+            hostPort: 9225,
+            protocol: Protocol.TCP,
+          },
         ],
         environment: config.minecraftImageEnv,
-        essential: false,
+        essential: true,
         taskDefinition,
         logging: config.debug
           ? new ecs.AwsLogDriver({
@@ -137,6 +144,10 @@ export class MinecraftStack extends Stack {
               streamPrefix: constants.MC_SERVER_CONTAINER_NAME,
             })
           : undefined,
+        dockerLabels: {
+          ECS_PROMETHEUS_EXPORTER_PORT: '9225',
+          Java_EMF_Metrics: 'true',
+        },
       }
     );
 
@@ -159,6 +170,7 @@ export class MinecraftStack extends Stack {
       ec2.Peer.anyIpv4(),
       minecraftServerConfig.ingressRulePort
     );
+    serviceSecurityGroup.addIngressRule(ec2.Peer.anyIpv4(), Port.tcp(9225));
 
     const minecraftServerService = new ecs.FargateService(
       this,
@@ -223,13 +235,9 @@ export class MinecraftStack extends Stack {
       'WatchDogContainer',
       {
         containerName: constants.WATCHDOG_SERVER_CONTAINER_NAME,
-        image: isDockerInstalled()
-          ? ecs.ContainerImage.fromAsset(
-              path.resolve(__dirname, '../../minecraft-ecsfargate-watchdog/')
-            )
-          : ecs.ContainerImage.fromRegistry(
-              'doctorray/minecraft-ecsfargate-watchdog'
-            ),
+        image: ecs.ContainerImage.fromRegistry(
+          'doctorray/minecraft-ecsfargate-watchdog'
+        ),
         essential: true,
         taskDefinition: taskDefinition,
         environment: {
