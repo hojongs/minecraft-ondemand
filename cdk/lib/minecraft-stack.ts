@@ -17,8 +17,8 @@ import { constants } from './constants';
 import { SSMParameterReader } from './ssm-parameter-reader';
 import { StackConfig } from './types';
 import { getMinecraftServerConfig, isDockerInstalled } from './util';
-import { Port } from 'aws-cdk-lib/lib/aws-ec2';
-import { Protocol } from 'aws-cdk-lib/lib/aws-ecs';
+import { Port } from 'aws-cdk-lib/aws-ec2';
+import { Protocol } from 'aws-cdk-lib/aws-ecs';
 
 interface MinecraftStackProps extends StackProps {
   config: Readonly<StackConfig>;
